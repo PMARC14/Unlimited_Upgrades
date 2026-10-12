@@ -15,25 +15,25 @@ import zipfile
 REQUIRED = ("AllUpgradesMod.dll", "manifest.json", "icon.png", "README.md")
 
 
-def main(argv: list[str]) -> int:
-    if len(argv) < 2:
-        print(__doc__)
-        return 2
-    path = argv[1]
-    expected_version = argv[2] if len(argv) > 2 else None
+def problems_for(path: str, expected_version: str | None = None) -> list[str]:
+    """Everything wrong with the zip at `path` (empty list = good to ship)."""
     problems: list[str] = []
-
     try:
         archive = zipfile.ZipFile(path)
     except (OSError, zipfile.BadZipFile) as error:
-        print(f"{path}: can't open as a zip: {error}")
-        return 1
+        return [f"can't open as a zip: {error}"]
 
     with archive:
         names = set(archive.namelist())
         for name in REQUIRED:
             if name not in names:
                 problems.append(f"missing {name}")
+
+        # Only the mod's own DLL may ship. Anything else would be game or
+        # library code copied in by mistake.
+        for name in sorted(names):
+            if name.lower().endswith(".dll") and name != "AllUpgradesMod.dll":
+                problems.append(f"unexpected DLL {name} — only AllUpgradesMod.dll may ship")
 
         if "AllUpgradesMod.dll" in names:
             dll = archive.read("AllUpgradesMod.dll")
@@ -49,7 +49,15 @@ def main(argv: list[str]) -> int:
                 version = None
             if version != expected_version:
                 problems.append(f"manifest.json says version {version!r}, expected {expected_version!r}")
+    return problems
 
+
+def main(argv: list[str]) -> int:
+    if len(argv) < 2:
+        print(__doc__)
+        return 2
+    path = argv[1]
+    problems = problems_for(path, argv[2] if len(argv) > 2 else None)
     if problems:
         print(f"{path} is NOT a valid release zip:")
         for problem in problems:

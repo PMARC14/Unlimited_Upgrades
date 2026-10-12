@@ -1,0 +1,187 @@
+# Builds the Thunderstore package and publishes a GitHub Release.
+#
+#   * push a tag like v1.0.2   -> build, package, verify, publish the release
+#   * Actions > Release > Run workflow
+#         publish = off (default) -> a DRY RUN: build and package only; the
+#                                    zip is attached to the run, nothing is
+#                                    published
+#         publish = on            -> also publish the release for the version
+#                                    in manifest.json (rebuilds an existing one)
+#
+# Compiling the mod needs the game's own DLLs, which can't live in this public
+# repo. They come from a PRIVATE repo (variable REFS_REPO) read with a
+# read-only token (secret REFS_TOKEN). One-time setup: RELEASING.md.
+#
+# Deliberately never triggered by pull requests: those would run with access
+# to the private DLLs.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish the GitHub Release (off = dry run: build and package only)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  # The Thunderstore team (namespace) the zip is named for.
+  THUNDERSTORE_NAMESPACE: BaconGames
+
+jobs:
+  release:
+    name: Build, package, and release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Check manifest, versions, icon, and tag
+        shell: bash
+        env:
+          TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+        run: python scripts/check_release.py "$TAG"
+
+      - name: Require the reference-assemblies setup
+        shell: bash
+        env:
+          REFS_TOKEN: ${{ secrets.REFS_TOKEN }}
+          REFS_REPO: ${{ vars.REFS_REPO }}
+        run: |
+          if [ -z "$REFS_TOKEN" ] || [ -z "$REFS_REPO" ]; then
+            echo "::error::Set the REFS_TOKEN secret and the REFS_REPO variable first. One-time setup is in RELEASING.md."
+            exit 1
+          fi
+
+      - name: Check out the game reference assemblies (private repo)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.REFS_REPO }}
+          token: ${{ secrets.REFS_TOKEN }}
+          path: refs
+          persist-credentials: false
+
+      - name: Check the reference assemblies are all there
+        shell: bash
+        run: |
+          missing=0
+          for file in \
+            game/dyingsun_Data/Managed/Assembly-CSharp.dll \
+            game/dyingsun_Data/Managed/UnityEngine.dll \
+            game/dyingsun_Data/Managed/Rewired_Core.dll \
+            bepinex/BepInEx.dll \
+            bepinex/0Harmony.dll; do
+            if [ ! -f "refs/$file" ]; then
+              echo "::error::The reference repo is missing $file (layout is in RELEASING.md)."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build the mod
+        shell: pwsh
+        run: |
+          dotnet build src/AllUpgradesMod.csproj -c Release `
+            -p:HOTDS_GAME_PATH="$env:GITHUB_WORKSPACE\refs\game" `
+            -p:BEPINEX_CORE_PATH="$env:GITHUB_WORKSPACE\refs\bepinex"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # The game's DLLs must never end up in anything uploaded or published.
+      - name: Remove the reference assemblies from the workspace
+        if: always()
+        shell: bash
+        run: rm -rf refs
+
+      - name: Package for Thunderstore
+        id: pkg
+        shell: bash
+        run: |
+          zip=$(python scripts/make_package.py src/bin/AllUpgradesMod.dll --out dist --namespace "$THUNDERSTORE_NAMESPACE")
+          version=$(python -c "import json; print(json.load(open('manifest.json'))['version_number'])")
+          echo "zip=$zip" >> "$GITHUB_OUTPUT"
+          echo "zip_name=$(basename "$zip")" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Packaged $zip"
+
+      # make_package.py already verifies the zip; this is the independent gate
+      # before anything is published.
+      - name: Verify the zip contains the real mod
+        shell: bash
+        env:
+          ZIP: ${{ steps.pkg.outputs.zip }}
+          VERSION: ${{ steps.pkg.outputs.version }}
+        run: python scripts/check_release_asset.py "$ZIP" "$VERSION"
+
+      - name: Attach the zip to this run (this is the file to upload to Thunderstore)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.pkg.outputs.zip_name }}
+          path: ${{ steps.pkg.outputs.zip }}
+          if-no-files-found: error
+
+      # Earlier broken releases carry a differently named zip with no mod in it;
+      # replace rather than add to it.
+      - name: Remove stale zips from an existing release
+        if: github.event_name == 'push' || inputs.publish
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.pkg.outputs.version }}
+          ZIP_NAME: ${{ steps.pkg.outputs.zip_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release view "$TAG" --json assets --jq '.assets[].name' | tr -d '\r' | while read -r name; do
+              case "$name" in
+                *.zip)
+                  if [ "$name" != "$ZIP_NAME" ]; then
+                    echo "Removing stale asset $name from $TAG"
+                    gh release delete-asset "$TAG" "$name" --yes
+                  fi
+                  ;;
+              esac
+            done
+          fi
+
+      - name: Publish the GitHub Release
+        if: github.event_name == 'push' || inputs.publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.pkg.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          files: ${{ steps.pkg.outputs.zip }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: false
+
+      - name: Summary
+        shell: bash
+        env:
+          ZIP_NAME: ${{ steps.pkg.outputs.zip_name }}
+          PUBLISHED: ${{ github.event_name == 'push' || inputs.publish }}
+        run: |
+          {
+            echo "### $ZIP_NAME"
+            if [ "$PUBLISHED" = "true" ]; then
+              echo "Published as a GitHub Release. Download the zip from the release (or this run's artifacts) and upload it to Thunderstore."
+            else
+              echo "Dry run: nothing was published. The zip is in this run's artifacts."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

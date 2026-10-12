@@ -1,7 +1,7 @@
 # Unlimited Upgrades
 
 [![GitHub Release](https://img.shields.io/github/v/release/PMARC14/Unlimited_Upgrades?style=flat-square)](https://github.com/PMARC14/Unlimited_Upgrades/releases)
-[![Thunderstore](https://img.shields.io/badge/Thunderstore-Unlimited__Upgrades-blue?style=flat-square)](https://thunderstore.io/c/house-of-the-dying-sun/)
+[![Thunderstore](https://img.shields.io/badge/Thunderstore-Unlimited__Upgrades-blue?style=flat-square)](https://thunderstore.io/c/hotds/p/BaconGames/Unlimited_Upgrades/)
 
 **Unlimited Upgrades** is a mod for *House of the Dying Sun* that removes the default 2-slot limit on player ships, allowing you to equip as many Field Upgrades (modifiers) as you want on any ship in your fleet!
 
@@ -23,14 +23,14 @@
 ## Requirements
 
 - **House of the Dying Sun** (Steam)
-- **[BepInExPack_HOTDS](https://thunderstore.io/c/house-of-the-dying-sun/p/BepInEx/BepInExPack_HOTDS/)** (v5.4.1900 or newer)
+- **[BepInExPack_HOTDS](https://thunderstore.io/c/hotds/p/BepInEx/BepInExPack_HOTDS/)** (v5.4.1900 or newer)
 
 ---
 
 ## Installation
 
 ### Automatic via r2modman / Thunderstore (Recommended)
-1. Install and open **[r2modman](https://thunderstore.io/c/house-of-the-dying-sun/p/ebkr/r2modman/)** or **Thunderstore Mod Manager**.
+1. Install and open **[r2modman](https://github.com/ebkr/r2modmanPlus)** or **Thunderstore Mod Manager**.
 2. Select **House of the Dying Sun** as your game.
 3. Search for **Unlimited_Upgrades** in the Online tab and click **Download**.
 4. Launch the game using **Start Modded**.
@@ -38,7 +38,7 @@
 ### Manual Installation
 1. Ensure **BepInEx** is installed in your *House of the Dying Sun* directory.
 2. Download the latest release `.zip` from the [Releases](https://github.com/PMARC14/Unlimited_Upgrades/releases) page or Thunderstore.
-3. Extract `AllUpgradesMod.dll` into your `BepInEx/plugins/` directory (e.g. `BepInEx/plugins/pmadd-Unlimited_Upgrades/AllUpgradesMod.dll`).
+3. Extract `AllUpgradesMod.dll` into your `BepInEx/plugins/` directory (e.g. `BepInEx/plugins/BaconGames-Unlimited_Upgrades/AllUpgradesMod.dll`).
 4. Launch the game.
 
 ---
