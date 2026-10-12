@@ -59,6 +59,8 @@ dotnet build src/AllUpgradesMod.csproj -c Release
 powershell -ExecutionPolicy Bypass -File package.ps1
 ```
 
+Maintainers: see [RELEASING.md](RELEASING.md) for how releases are built and checked.
+
 ---
 
 ## License
