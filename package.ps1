@@ -1,6 +1,8 @@
 $stagingDir = "$PSScriptRoot\staging"
 $distDir = "$PSScriptRoot\dist"
-$outputZip = "$distDir\pmadd-Unlimited_Upgrades-1.0.1.zip"
+$manifest = Get-Content "$PSScriptRoot\manifest.json" -Raw | ConvertFrom-Json
+$version = $manifest.version_number
+$outputZip = "$distDir\pmadd-Unlimited_Upgrades-$version.zip"
 $dllSource = "$PSScriptRoot\src\bin\AllUpgradesMod.dll"
 
 Write-Host "Building project in Release mode..."
