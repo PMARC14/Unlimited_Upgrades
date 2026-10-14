@@ -1,6 +1,6 @@
 {
   "name": "Unlimited_Upgrades",
-  "version_number": "1.0.1",
+  "version_number": "1.0.2",
   "website_url": "https://github.com/PMARC14/Unlimited_Upgrades",
   "description": "Equip unlimited upgrades on player ships with scrollable hangar slots and toggle selection.",
   "dependencies": [
