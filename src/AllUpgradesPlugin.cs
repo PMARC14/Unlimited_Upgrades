@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace AllUpgradesMod
 {
-    [BepInPlugin("com.pmadd.unlimitedupgrades", "Unlimited Upgrades", "1.0.1")]
+    [BepInPlugin("com.pmadd.unlimitedupgrades", "Unlimited Upgrades", "1.0.2")]
     public class UnlimitedUpgradesPlugin : BaseUnityPlugin
     {
         private void Awake()
