@@ -11,6 +11,7 @@
 staging/
 dist/
 libs/
+refs/
 
 # OS / Editor metadata
 .DS_Store
@@ -18,3 +19,6 @@ Thumbs.db
 .vs/
 .vscode/
 .idea/
+
+# Python
+__pycache__/
